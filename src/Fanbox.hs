@@ -13,6 +13,7 @@ import Data.Maybe
 import Network.HTTP.Simple
 import System.Directory
 import System.FilePath
+import System.IO
 import System.Process
 import Text.Regex.TDFA
 
@@ -23,19 +24,22 @@ crawl path = do
   let (name, urls) = (fromJust . processInfo . fromJust . decodeStrict . BS.pack) info
   let num = length urls
   liftIO $ putStr $ "\r" ++ name ++ " - 0/" ++ show num
+  liftIO $ hFlush stdout
   if num == 1
   then do
     (image, ext) <- requestImage $ urls !! 0
-    liftIO $ BS.writeFile (name ++ ext) image
+    liftIO $ BS.writeFile (name <.> ext) image
     liftIO $ putStr $ "\r" ++ name ++ " - 1/1"
+    liftIO $ hFlush stdout
   else do
-    liftIO $ createDirectory name
     images <- forM urls requestImage
+    liftIO $ createDirectory name
     forM_ (zip [1..] images) \(i, (image, ext)) -> do
       let s = show (i :: Int)
       let counter = replicate (4 - length s) '0' ++ s
       liftIO $ BS.writeFile (name </> counter <.> ext) image
       liftIO $ putStr $ "\r" ++ name ++ " - " ++ s ++ "/" ++ show num
+      liftIO $ hFlush stdout
   liftIO $ putStrLn ""
 
 requestInfo :: String -> App String
