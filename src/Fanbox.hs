@@ -23,24 +23,21 @@ crawl path = do
   info <- requestInfo post_id
   let (name, urls) = (fromJust . processInfo . fromJust . decodeStrict . BS.pack) info
   let num = length urls
-  liftIO $ putStr $ "\r" ++ name ++ " - 0/" ++ show num
-  liftIO $ hFlush stdout
   if num == 1
   then do
     (image, ext) <- requestImage $ urls !! 0
     liftIO $ BS.writeFile (name <.> ext) image
-    liftIO $ putStr $ "\r" ++ name ++ " - 1/1"
-    liftIO $ hFlush stdout
+    liftIO $ putStrLn $ name ++ " - 1/1"
   else do
-    images <- forM urls requestImage
     liftIO $ createDirectory name
-    forM_ (zip [1..] images) \(i, (image, ext)) -> do
+    forM_ (zip [1..] urls) \(i, url) -> do
+      (image, ext) <- requestImage url
       let s = show (i :: Int)
       let counter = replicate (4 - length s) '0' ++ s
       liftIO $ BS.writeFile (name </> counter <.> ext) image
       liftIO $ putStr $ "\r" ++ name ++ " - " ++ s ++ "/" ++ show num
       liftIO $ hFlush stdout
-  liftIO $ putStrLn ""
+    liftIO $ putStrLn ""
 
 requestInfo :: String -> App String
 requestInfo post_id = do

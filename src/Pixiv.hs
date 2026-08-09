@@ -20,27 +20,24 @@ crawl :: String -> App ()
 crawl path = do
   let (_, _, art_id) :: (String, String, String) = path =~ ("/artworks/" :: String)
   info <- requestInfo art_id
-  let (name, num, url) = (fromJust . processInfo) info
+  let (name, num, first_url) = (fromJust . processInfo) info
   if num == 1
   then do
-    liftIO $ putStr $ "\r" ++ name ++ " - 0/1"
-    liftIO $ hFlush stdout
-    (image, ext) <- requestImage url
+    (image, ext) <- requestImage first_url
     liftIO $ BS.writeFile (name <.> ext) image
-    liftIO $ putStr $ "\r" ++ name ++ " - 1/1"
-    liftIO $ hFlush stdout
+    liftIO $ putStrLn $ name ++ " - 1/1"
   else do
     pages <- requestPages art_id
     let urls = (fromJust . processPages) pages
-    images <- forM urls requestImage
     liftIO $ createDirectory name
-    forM_ (zip [1..] images) \(i, (image, ext)) -> do
+    forM_ (zip [1..] urls) \(i, url) -> do
+      (image, ext) <- requestImage url
       let s = show (i :: Int)
       let counter = replicate (4 - length s) '0' ++ s
       liftIO $ BS.writeFile (name </> counter <.> ext) image
       liftIO $ putStr $ "\r" ++ name ++ " - " ++ s ++ "/" ++ show num
       liftIO $ hFlush stdout
-  liftIO $ putStrLn ""
+    liftIO $ putStrLn ""
 
 buildReq :: String -> App Request
 buildReq url = do
